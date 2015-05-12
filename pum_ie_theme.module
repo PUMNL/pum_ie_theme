@@ -66,11 +66,16 @@ function pum_ie_theme_is_browser_ie() {
   $version = false;
   $ie = false;
   $matches = array();
-  $count = preg_match_all("/(.*)\\((.*); MSIE (8\\.0);.*/i", $user_agent, $matches);
+  $count = preg_match_all("/(.*)\\((.*); MSIE ([0-9]?[0-9]\\.[0-9]+);.*/i", $user_agent, $matches);
   if ($count && isset($matches[3])) {
-    $version = (float) $matches[3];
+    if (is_array($matches[3])) {
+      $version = (float) reset($matches[3]);
+    } else {
+      $version = (float) $matches[3];
+    }
     $ie = true;
   }
+  
   if ($ie && $version < 11.0) {
     return true;
   }
