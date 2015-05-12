@@ -1,0 +1,125 @@
+<?php
+
+/**
+ * Implements hook_custom_theme().
+ *
+ * @param $return_single
+ *   Boolean whether to return the first determined custom theme (TRUE) or all
+ *   determined values (FALSE). Defaults to TRUE.
+ */
+function pum_ie_theme_custom_theme($return_single = TRUE) {
+  if (arg(0) == 'civicrm') {
+    return;
+  }
+  if (path_is_admin(current_path())) {
+    return;
+  }
+
+  $ie_theme = variable_get('pum_ie_theme', 0);
+  if (pum_ie_theme_is_browser_ie() && $ie_theme) {
+    $custom_theme = $ie_theme;
+    if ($return_single) {
+      return $custom_theme;
+    } else {
+      return array($custom_theme);
+    }
+  }
+}
+
+/**
+ * Implements hook_module_implements_alter
+ *
+ * Make sure our hook runs as last one
+ *
+ * @param $module_list
+ * @param $context
+ */
+function pum_ie_theme_module_implements_alter(&$module_list, $context)
+{
+  if ($context === "custom_theme") {
+    $old_module_list = $module_list;
+    $module_list = array();
+    $old_key = null;
+    foreach ($old_module_list as $module => $key) {
+      if ($module == 'pum_ie_theme') {
+        $old_key = $key;
+      } else {
+        $module_list[$module] = $key;
+      }
+    }
+    if (isset($old_key)) {
+      $module_list['pum_ie_theme'] = $old_key;
+    }
+  }
+}
+
+function pum_ie_theme_is_browser_ie() {
+  $user_agent = false;
+  if (isset($_SERVER['HTTP_USER_AGENT'])) {
+    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+  }
+
+  if (!$user_agent) {
+    return false;
+  }
+
+  $version = false;
+  $ie = false;
+  $matches = array();
+  preg_match_all("/(.*)\\((.*); MSIE (8\\.0);.*/i", $user_agent, $matches);
+  if (isset($matches[3])) {
+    $version = (float) $matches[3];
+    $ie = true;
+  }
+
+  if ($ie && $version < 11.0) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get all available themes.
+ */
+function pum_ie_theme_list_themes() {
+  $theme_list = array();
+  // Get current list of themes.
+  $themes = system_rebuild_theme_data();
+  uasort($themes, 'system_sort_modules_by_info_name');
+
+  foreach ($themes as & $theme) {
+    if (!empty($theme->info['hidden'])) {
+      continue;
+    }
+    $theme_list[$theme->name] = $theme->info['name'];
+  }
+
+  return $theme_list;
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function pum_ie_theme_form_system_themes_admin_form_alter(&$form, $form_state) {
+  //var_dump($form); exit();
+
+  $theme_list = pum_ie_theme_list_themes();
+
+  $form['admin_theme']['ie_theme'] = array(
+    '#type' => 'select',
+    '#options' => array(
+        0 => t('Default theme')) + $theme_list,
+    '#title' => t('Theme for IE'),
+    '#description' => t('Choose theme for when user is browsing in Internet Explorer (Only for public pages).'),
+    '#default_value' => variable_get('pum_ie_theme', 0),
+    '#weight' => -10,
+  );
+  // Add extra submit
+  $form['#submit'][] = 'pum_ie_theme_system_themes_admin_form_submit';
+  $form['admin_theme']['actions']['#weight'] = 10;
+}
+
+function pum_ie_theme_system_themes_admin_form_submit($form, &$form_state) {
+  variable_set('pum_ie_theme', $form_state['values']['ie_theme']);
+}
