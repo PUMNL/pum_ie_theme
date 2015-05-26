@@ -76,7 +76,7 @@ function pum_ie_theme_is_browser_ie() {
     $ie = true;
   }
 
-  if ($ie && $version < 9.0) {
+  if ($ie && $version < 10.0) {
     return true;
   }
 
